@@ -1,0 +1,127 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Circles of Life</title>
+</head>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pixi.js/4.5.1/pixi.min.js"></script>
+<body>
+  <style>* {padding: -; margin: 0}</style>
+  <script type="text/javascript">
+	//Create a Pixi Application
+	let app = new PIXI.Application({width: 640, height: 640, backgroundColor: 0xBBBBBB});
+
+	//Add the canvas that Pixi automatically created for you to the HTML document
+	app.renderer.view.style.position = "absolute";
+	app.renderer.view.style.display = "block";
+	app.renderer.autoResize = true;
+	app.renderer.resize(window.innerWidth, window.innerHeight);
+	document.body.appendChild(app.view);
+
+	class Circle {
+	    constructor (color, radius, vx, vy, lifetime) {
+	         this.color = color;
+	         this.radius = radius;
+	         this.vx = vx;
+	         this.vy = vy;
+		 this.lifetime = lifetime;
+		 this.timeleft = lifetime;
+	    }
+
+	    pixify(app) {
+		this.app = app;
+
+	        this.pixiCircle = app.stage.addChild( new PIXI.Graphics()
+	        .beginFill(this.color)
+		.drawEllipse(100, 100, this.radius, this.radius)
+		.endFill());
+		return this;
+	    }
+
+	    step(delta) {
+		   this.timeleft -= 100;
+		   if (this.timeleft < 1) {
+		       this.selfDestruct();
+		       if (this.radius > 5) {
+			       new Circle(0xffffff - this.color, 0.8 * this.radius, this.vy, this.vx, 0.7 * this.lifetime).pixify(app).animate();
+		       }
+		   } else {
+			   if (this.pixiCircle.x < 0 || this.pixiCircle.x > app.renderer.view.width - 2 * this.radius) {
+			      this.vx *= -1;
+			   }
+			   this.pixiCircle.x += this.vx;
+			   if (this.pixiCircle.y < 0 || this.pixiCircle.y > app.renderer.view.height - 2 * this.radius) {
+			      this.vy *= -1;
+			   }
+			   this.pixiCircle.y += this.vy;
+                   }
+	    }
+
+	    animate() {
+	       this.pixiCircle.x = 0;
+	       this.thisThis = this;
+	       this.pixiCircle.y = 0;
+	       this.app.ticker.add(this.step, this.thisThis);
+	       return this;
+	    }
+
+	    selfDestruct() {
+		       this.app.ticker.remove(this.step, this);
+		       this.pixiCircle.destroy();
+	    }
+	}
+
+	class Button {
+	    constructor (params) {
+                  this.centerX = params.centerX;
+                  this.centerY = params.centerY;
+		  this.radius = 40;
+	    }
+
+
+	    pixify(app) {
+		this.app = app;
+
+	        this.container = app.stage.addChild( new PIXI.Container());
+		this.container.interactive = true;
+		this.container.buttonMode = true;
+		this.container.on('click', function(event) {
+			var localBounds = event.currentTarget.children[0].getLocalBounds();
+			event.currentTarget.addChild(new PIXI.Graphics()
+			    .beginFill(0x0000ff)
+			    .drawEllipse(localBounds.x + localBounds.width / 2, localBounds.y + localBounds.height / 2, localBounds.width / 2, localBounds.height / 2)
+		            .endFill());
+			event.currentTarget.children[0].destroy();
+		});
+	        this.pixiBall = this.container.addChild( new PIXI.Graphics()
+			.beginFill(0xffff00)
+			.drawEllipse(this.centerX + this.radius, this.centerY + this.radius, this.radius, this.radius)
+			.endFill());
+		return this;
+	    }
+	}
+
+	function randomInt(min, max) {
+	  return Math.floor(Math.random() * (max - min + 1)) + min;
+	}
+
+        new Button({centerX: 100, centerY: 100}).pixify(app);
+        new Button({centerX: 200, centerY: 100}).pixify(app);
+        new Button({centerX: 300, centerY: 100}).pixify(app);
+        new Button({centerX: 400, centerY: 100}).pixify(app);
+        new Button({centerX: 100, centerY: 200}).pixify(app);
+        new Button({centerX: 200, centerY: 200}).pixify(app);
+        new Button({centerX: 300, centerY: 200}).pixify(app);
+        new Button({centerX: 400, centerY: 200}).pixify(app);
+        new Button({centerX: 100, centerY: 300}).pixify(app);
+        new Button({centerX: 200, centerY: 300}).pixify(app);
+        new Button({centerX: 300, centerY: 300}).pixify(app);
+        new Button({centerX: 400, centerY: 300}).pixify(app);
+        new Button({centerX: 100, centerY: 400}).pixify(app);
+        new Button({centerX: 200, centerY: 400}).pixify(app);
+        new Button({centerX: 300, centerY: 400}).pixify(app);
+        new Button({centerX: 400, centerY: 400}).pixify(app);
+
+  </script>
+</body>
+</html>

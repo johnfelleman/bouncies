@@ -9,6 +9,15 @@
   <style>* {padding: -; margin: 0}</style>
   <script type="text/javascript">
 	//Create a Pixi Application
+	let app = new PIXI.Application({width: 640, height: 640, backgroundColor: 0xBBBBBB});
+
+	//Add the canvas that Pixi automatically created for you to the HTML document
+	app.renderer.view.style.position = "absolute";
+	app.renderer.view.style.display = "block";
+	app.renderer.autoResize = true;
+	app.renderer.resize(window.innerWidth, window.innerHeight);
+	document.body.appendChild(app.view);
+
 	class Circle {
 	    constructor (color, radius, vx, vy, lifetime) {
 	         this.color = color;
@@ -115,27 +124,45 @@
 	    }
 	}
 
-	let app = new PIXI.Application({width: 640, height: 640, backgroundColor: 0xBBBBBB});
+	function randomInt(min, max) {
+	  return Math.floor(Math.random() * (max - min + 1)) + min;
+	}
 
-	//Add the canvas that Pixi automatically created for you to the HTML document
-	app.renderer.view.style.position = "absolute";
-	app.renderer.view.style.display = "block";
-	app.renderer.autoResize = true;
-	app.renderer.resize(window.innerWidth, window.innerHeight);
-	document.body.appendChild(app.view);
+        let ballCount = 0;
+        let ticksPerBall = 500;
 
-	    var bigRed = new Ball(0xff0000, 150, 2, 1, 100000).pixify(app).animate();
-	    var medBlue = new Circle(0x0000ff, 100, 5, 4, 60000).pixify(app).animate();
-	    var lilGreen = new Circle(0x00ff00, 50, 7, 5, 45000).pixify(app).animate();
-	    var slowPurple = new Circle(0xff00ff, 120, 1, 0.5, 100000).pixify(app).animate();
-	    var lightningYellow = new Circle(0xffff0f, 30, 12, 9, 30000).pixify(app).animate();
-	    var silverStreak = new Circle(0xcccccc, 30, 25, 40, 35000).pixify(app).animate();
-	    var gb90 = new Circle(0x00ffff, 90, 20, 1, 55000).pixify(app).animate();
-	    var dark = new Circle(0x4400a0, 60, 5, 18, 55000).pixify(app).animate();
-	    var lilGreen = new Circle(0x00ff00, 50, 7, 5, 45000).pixify(app).animate();
-	    var whiteHot = new Circle(0xffbbff, 20, 30, 30,80000).pixify(app).animate();
-	    var loverboy = new Circle(0xffcccc, 80, 12, 7, 60000).pixify(app).animate();
-	    var blackout = new Circle(0x000000, 30, 25, 40, 44444).pixify(app).animate();
+	function ballMaker(delta) {
+	    if (ballCount > ticksPerBall) {
+	        new Ball(
+			randomInt(0, 0xfffffe),  // random color
+			randomInt(40, 100),
+			randomInt(8, 40),
+			randomInt(4, 30),
+			randomInt(15000, 50000))
+			.pixify(app).animate();
+	        new Ball( (Math.floor(Math.random() * (0xffffff + 1))), 60, 8, 6, 50000).pixify(app).animate();
+		ballCount = 0;
+		ticksPerBall = randomInt(200, 600);
+	    } else {
+		ballCount += delta;
+	    }
+	}
+
+	app.ticker.add(delta => ballMaker(delta));
+
+
+	    // new Ball(0xff0000, 150, 2, 1, 100000).pixify(app).animate();
+	    // new Circle(0x0000ff, 100, 5, 4, 60000).pixify(app).animate();
+	    // new Circle(0x00ff00, 50, 7, 5, 45000).pixify(app).animate();
+	    // new Circle(0xff00ff, 120, 1, 0.5, 100000).pixify(app).animate();
+	    // new Circle(0xffff0f, 30, 12, 9, 30000).pixify(app).animate();
+	    // new Circle(0xcccccc, 30, 25, 40, 35000).pixify(app).animate();
+	    // new Circle(0x00ffff, 90, 20, 1, 55000).pixify(app).animate();
+	    // new Circle(0x4400a0, 60, 5, 18, 55000).pixify(app).animate();
+	    // new Circle(0x00ff00, 50, 7, 5, 45000).pixify(app).animate();
+	    // new Circle(0xffbbff, 20, 30, 30,80000).pixify(app).animate();
+	    // new Circle(0xffcccc, 80, 12, 7, 60000).pixify(app).animate();
+	    // new Circle(0x000000, 30, 25, 40, 44444).pixify(app).animate();
 
 	let style = new PIXI.TextStyle({
 	  fontFamily: "Arial",
