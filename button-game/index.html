@@ -2,7 +2,7 @@
 <html>
 <head>
   <meta charset="utf-8">
-  <title>Circles of Life</title>
+  <title>Jewels or Jail</title>
 </head>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pixi.js/4.5.1/pixi.min.js"></script>
 <body>
@@ -18,109 +18,153 @@
 	app.renderer.resize(window.innerWidth, window.innerHeight);
 	document.body.appendChild(app.view);
 
-	class Circle {
-	    constructor (color, radius, vx, vy, lifetime) {
-	         this.color = color;
-	         this.radius = radius;
-	         this.vx = vx;
-	         this.vy = vy;
-		 this.lifetime = lifetime;
-		 this.timeleft = lifetime;
-	    }
-
-	    pixify(app) {
-		this.app = app;
-
-	        this.pixiCircle = app.stage.addChild( new PIXI.Graphics()
-	        .beginFill(this.color)
-		.drawEllipse(100, 100, this.radius, this.radius)
-		.endFill());
-		return this;
-	    }
-
-	    step(delta) {
-		   this.timeleft -= 100;
-		   if (this.timeleft < 1) {
-		       this.selfDestruct();
-		       if (this.radius > 5) {
-			       new Circle(0xffffff - this.color, 0.8 * this.radius, this.vy, this.vx, 0.7 * this.lifetime).pixify(app).animate();
-		       }
-		   } else {
-			   if (this.pixiCircle.x < 0 || this.pixiCircle.x > app.renderer.view.width - 2 * this.radius) {
-			      this.vx *= -1;
-			   }
-			   this.pixiCircle.x += this.vx;
-			   if (this.pixiCircle.y < 0 || this.pixiCircle.y > app.renderer.view.height - 2 * this.radius) {
-			      this.vy *= -1;
-			   }
-			   this.pixiCircle.y += this.vy;
-                   }
-	    }
-
-	    animate() {
-	       this.pixiCircle.x = 0;
-	       this.thisThis = this;
-	       this.pixiCircle.y = 0;
-	       this.app.ticker.add(this.step, this.thisThis);
-	       return this;
-	    }
-
-	    selfDestruct() {
-		       this.app.ticker.remove(this.step, this);
-		       this.pixiCircle.destroy();
+	class Grid {
+	    constructor (params) {
 	    }
 	}
 
 	class Button {
 	    constructor (params) {
-                  this.centerX = params.centerX;
-                  this.centerY = params.centerY;
-		  this.radius = 40;
+				  this.radius = 60;
+				  this.faceUp = true;
+
+				  this.theButton = app.stage.addChild( new PIXI.Container());
+				  this.theButton.position.set(params.centerX, params.centerY);
+				  this.theButton.interactive = true;
+				  this.theButton.buttonMode = true;
+
+				  this.buttonFront = this.theButton.addChild( new PIXI.Container());
+				  this.frontDisk = this.buttonFront.addChild( new PIXI.Graphics()
+					  .beginFill(0xffff00)
+					  .drawEllipse(0, 0, this.radius, this.radius)
+					  .endFill());
+ 
+				  this.frontText = this.buttonFront.addChild(new PIXI.Text("?",
+					  new PIXI.TextStyle({ fontFamily: "Arial", fontSize: 48, fill: "black" })));
+				  this.frontText.x -= 10;
+				  this.frontText.y -= this.radius/2;
+				  this.buttonFront.visible = true;
+
+				  this.buttonBack = this.theButton.addChild( new PIXI.Container());
+				  this.backDisk = this.buttonBack.addChild( new PIXI.Graphics()
+					  .beginFill(0x0000ff)
+					  .drawEllipse(0, 0, this.radius, this.radius)
+					  .endFill());
+				  this.buttonBack.visible = false;
+
+				  this.theButton.on('click', function(event) {
+					  if (event.currentTarget.children[0].visible === true) {
+								 event.currentTarget.children[0].visible = false;
+								 event.currentTarget.children[1].visible = true;
+							    this.spin(.01);
+							    this.spin(.01);
+								 this.startToPerspect(.01);
+					  } else {
+							 app.ticker.add(this.step, this);
+
+								 // event.currentTarget.children[0].visible = true;
+								 // event.currentTarget.children[1].visible = false;
+					  }
+				  }.bind(this));
+				  this.container = app.stage.addChild( new PIXI.Container());
+				  this.buttonBack.visible = false;
+				  return this;
+	   }
+
+		 spin(radPerSec) {
+			 app.ticker.add(this.rotate, this);
+		 }
+
+		 rotate(delta) {
+		    this.buttonBack.rotation += .05;
+		 }
+
+		 startToPerspect(radPerSec) {
+			 app.ticker.add(this.perspect, this);
+		 }
+
+		 perspect(delta) {
+		    this.buttonFront.children[0].width -= .05;
+		    console.log('t.bF.c[].w: ' + this.buttonFront.children[0].width);
+			 if (this.buttonFront.children[0].width < -60) {
+			     this.buttonFront.children[0].width = 60;
+			 }
+		 }
+
+	    selfDestruct() {
+		       this.app.ticker.remove(this.step, this);
+		       // this.pixiCircle.destroy();
+	    }
+	    step(delta) {
+			   this.theButton.y += 5;
 	    }
 
-
-	    pixify(app) {
-		this.app = app;
-
-	        this.container = app.stage.addChild( new PIXI.Container());
-		this.container.interactive = true;
-		this.container.buttonMode = true;
-		this.container.on('click', function(event) {
-			var localBounds = event.currentTarget.children[0].getLocalBounds();
-			event.currentTarget.addChild(new PIXI.Graphics()
-			    .beginFill(0x0000ff)
-			    .drawEllipse(localBounds.x + localBounds.width / 2, localBounds.y + localBounds.height / 2, localBounds.width / 2, localBounds.height / 2)
-		            .endFill());
-			event.currentTarget.children[0].destroy();
-		});
-	        this.pixiBall = this.container.addChild( new PIXI.Graphics()
-			.beginFill(0xffff00)
-			.drawEllipse(this.centerX + this.radius, this.centerY + this.radius, this.radius, this.radius)
-			.endFill());
-		return this;
-	    }
 	}
 
 	function randomInt(min, max) {
 	  return Math.floor(Math.random() * (max - min + 1)) + min;
 	}
+   
+	var wotd = [
+			   'frothy',
+			   'soft',
+				'collusion',
+				'normalize',
+				'd44',
+				'humor',
+				'the\nDonald',
+				'smackdown',
+				'pie',
+				'PIXI',
+				'404\nPage not found',
+				'This',
+				'is',
+				'us'
+	];
 
-        new Button({centerX: 100, centerY: 100}).pixify(app);
-        new Button({centerX: 200, centerY: 100}).pixify(app);
-        new Button({centerX: 300, centerY: 100}).pixify(app);
-        new Button({centerX: 400, centerY: 100}).pixify(app);
-        new Button({centerX: 100, centerY: 200}).pixify(app);
-        new Button({centerX: 200, centerY: 200}).pixify(app);
-        new Button({centerX: 300, centerY: 200}).pixify(app);
-        new Button({centerX: 400, centerY: 200}).pixify(app);
-        new Button({centerX: 100, centerY: 300}).pixify(app);
-        new Button({centerX: 200, centerY: 300}).pixify(app);
-        new Button({centerX: 300, centerY: 300}).pixify(app);
-        new Button({centerX: 400, centerY: 300}).pixify(app);
-        new Button({centerX: 100, centerY: 400}).pixify(app);
-        new Button({centerX: 200, centerY: 400}).pixify(app);
-        new Button({centerX: 300, centerY: 400}).pixify(app);
-        new Button({centerX: 400, centerY: 400}).pixify(app);
+	function randomWotd() {
+	   return wotd[randomInt(0,wotd.length)];
+	}
+
+	var faceJpgs = [];
+	var faceSprites = [];
+	[ "bannon", "flynn", "mueller", "ivanka", "jared", "manafort", "m2", "ma2", "j2", "i2", "b2", "f2" ]
+               .forEach(function(face, faceIndex, faceArray) {
+					   faceJpgs.push( 'images/' + face + '.jpg')
+               });
+	
+	PIXI.loader.add(faceJpgs).load((setup));
+
+		  function setup() {
+					 faceJpgs.forEach(function(jpg, jpgIndex, jpgArray) {
+					     faceSprites.push(new PIXI.Sprite(
+						      PIXI.loader.resources[jpg].texture
+								  ));
+					 });
+						buttons.forEach(function(buttonItem, buttonIndex, buttonArray) {
+							 var newBack = new PIXI.Container();
+							 this.mask = new PIXI.Graphics().beginFill(0xffffff).drawEllipse(0,0,60,60).endFill();
+							 mask.isMask = true;
+							 let sprite = newBack.addChild(faceSprites[buttonIndex]);
+							 let maskChild = newBack.addChild(mask);
+							 newBack.mask = this.mask;
+							 sprite.width = 120;
+							 sprite.height = 120;
+							 sprite.x = - sprite.width / 2;
+							 sprite.y = - sprite.height / 2;
+						    mask.width = 120;
+						    mask.height = 120;
+							 buttonItem.buttonBack.addChild(newBack);
+						});
+					 console.log('in setup');
+		  }
+
+	let buttons = [];
+   [150, 300, 450, 600].forEach(function(xVal, xInd, xArray){
+		 [150, 300, 450].forEach(function(yVal, yInd, yArray) {
+			  buttons.push(new Button ({centerX: xVal, centerY: yVal}));
+       });
+   });
 
   </script>
 </body>
