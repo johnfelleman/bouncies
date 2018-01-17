@@ -8,8 +8,20 @@
 <body>
   <style>* {padding: -; margin: 0}</style>
   <script type="text/javascript">
+
+    // Aliases
+    let
+        Application = PIXI.Application,
+        loader = PIXI.loader,
+        resources = PIXI.loader.resources,
+        Container = PIXI.Container,
+        Graphics = PIXI.Graphics,
+        Text = PIXI.Text,
+        TextStyle = PIXI.TextStyle,
+        Sprite = PIXI.Sprite;
+
 	//Create a Pixi Application
-	let app = new PIXI.Application({width: 640, height: 640, backgroundColor: 0xBBBBBB});
+	let app = new Application({width: 640, height: 640, backgroundColor: 0xBBBBBB});
 
 	//Add the canvas that Pixi automatically created for you to the HTML document
 	app.renderer.view.style.position = "absolute";
@@ -18,72 +30,85 @@
 	app.renderer.resize(window.innerWidth, window.innerHeight);
 	document.body.appendChild(app.view);
 
-	class Grid {
-	    constructor (params) {
-	    }
-	}
-
 	class Button {
-	    constructor (params) {
-				  this.radius = 60;
-				  this.faceUp = true;
+	    constructor (params, callback) {
+                  // add defaults for missing params
+                  this.gameParams = JSON.parse(JSON.stringify(params));
+                  if (this.gameParams.hasOwnProperty('frontFaceColor') !== true) {
+                      this.gameParams.frontFaceColor = 0xff00ff;
+                  }
+                  if (this.gameParams.hasOwnProperty('backFaceColor') !== true) {
+                      this.gameParams.backFaceColor = 0x6666ff;
+                  }
+                  if (this.gameParams.hasOwnProperty('radius') !== true) {
+                      this.gameParams.radius = 60;
+                  }
 
-				  this.theButton = app.stage.addChild( new PIXI.Container());
-				  this.theButton.position.set(params.centerX, params.centerY);
-				  this.theButton.interactive = true;
-				  this.theButton.buttonMode = true;
+                  // create the graphics
+                  this.callback = callback;
+				  this.disk = new Container(); // main container for disk
+				  this.disk.interactive = true;
+				  this.disk.buttonMode = true;
 
-				  this.buttonFront = this.theButton.addChild( new PIXI.Container());
-				  this.frontDisk = this.buttonFront.addChild( new PIXI.Graphics()
-					  .beginFill(0xffff00)
-					  .drawEllipse(0, 0, this.radius, this.radius)
-					  .endFill());
- 
-				  this.frontText = this.buttonFront.addChild(new PIXI.Text("?",
-					  new PIXI.TextStyle({ fontFamily: "Arial", fontSize: 48, fill: "black" })));
-				  this.frontText.x -= 10;
-				  this.frontText.y -= this.radius/2;
-				  this.buttonFront.visible = true;
+                  this.disk.mask = this.disk.addChild(new Graphics()
+                      .beginFill(0xffffff)
+                      .drawEllipse(0, 0, this.gameParams.radius, this.gameParams.radius)
+                      .endFill());
+                  this.disk.mask.width = 2 * this.gameParams.radius;
+                  this.disk.mask.height = 2 * this.gameParams.radius;
+                  this.disk.mask.isMask = true;
 
-				  this.buttonBack = this.theButton.addChild( new PIXI.Container());
-				  this.backDisk = this.buttonBack.addChild( new PIXI.Graphics()
-					  .beginFill(0x0000ff)
-					  .drawEllipse(0, 0, this.radius, this.radius)
-					  .endFill());
-				  this.buttonBack.visible = false;
+                  this.frontFaceContainer = this.disk.addChild(new Container());
+                  this.frontFaceFill = this.frontFaceContainer.addChild(new Graphics())
+                      .beginFill(this.gameParams.frontFaceColor)
+                      .drawEllipse(0, 0, this.gameParams.radius, this.gameParams.radius)
+                      .endFill();
+                  
+                  this.frontFaceText =
+                          this.disk.addChild(new PIXI.Text('?',
+                          {fontFamily : 'Arial', fontSize: 36, fill : 0xff1010, align : 'center'}));
+                  this.backFaceContainer = this.disk.addChild(new Container());
+                  this.backFaceFill = this.backFaceContainer.addChild(new Graphics())
+                      .beginFill(this.gameParams.backFaceColor)
+                      .drawEllipse(0, 0, this.gameParams.radius, this.gameParams.radius)
+                      .endFill();
+				  this.backFaceContainer.visible = false;
+                  
+                  app.stage.addChild(this.disk);
+				  this.disk.position.set(this.gameParams.centerX, this.gameParams.centerY);
 
-				  this.theButton.on('click', function(event) {
-					  if (event.currentTarget.children[0].visible === true) {
-								 event.currentTarget.children[0].visible = false;
-								 event.currentTarget.children[1].visible = true;
-							    this.spin(.01);
-							    this.spin(.01);
-								 this.startToPerspect(.01);
-					  } else {
-							 app.ticker.add(this.step, this);
+                  this.gameState = {
+                      firstClickCount: 0,   // number of times this has been the first click of a turn
+                      secondClickCount: 0,  // see above
+                      firstClickPending: false  // 'true' means that button has been clicked and is waiting for the second click of a turn
+                  };
 
-								 // event.currentTarget.children[0].visible = true;
-								 // event.currentTarget.children[1].visible = false;
-					  }
-				  }.bind(this));
-				  this.container = app.stage.addChild( new PIXI.Container());
-				  this.buttonBack.visible = false;
+                  // handle clicking
+				  this.disk.on('click', clickHandler.bind(this));
+				  this.container = app.stage.addChild( new Container());
 				  return this;
 	   }
 
-		 spin(radPerSec) {
-			 app.ticker.add(this.rotate, this);
+       setWait(value) {     // A button has been pressed
+           if (value === true) {
+               this.spin(2);
+               this.setFrontFaceColor(0xff000000);
+           }
+       }
+
+       spin(radPerSec) {
+           app.ticker.add(this.rotate, this);
+		   }
+
+       rotate(delta) {
+		    this.disk.rotation += .05;
 		 }
 
-		 rotate(delta) {
-		    this.buttonBack.rotation += .05;
-		 }
+       startToPerspect(radPerSec) {
+	        app.ticker.add(this.perspect, this);
+       }
 
-		 startToPerspect(radPerSec) {
-			 app.ticker.add(this.perspect, this);
-		 }
-
-		 perspect(delta) {
+       perspect(delta) {
 		    this.buttonFront.children[0].width -= .05;
 		    console.log('t.bF.c[].w: ' + this.buttonFront.children[0].width);
 			 if (this.buttonFront.children[0].width < -60) {
@@ -98,73 +123,145 @@
 	    step(delta) {
 			   this.theButton.y += 5;
 	    }
-
 	}
+
+    class Game {
+	    constructor (params) {
+            this.gameParams = JSON.parse(JSON.stringify(params));
+
+            // if needed add extra entry to make four buttons/line
+            if (this.gameParams.pairs.length % 2 !== 0) {
+                this.gameParams.pairs.push({ commonName: 'Joker', itemOneName: 'Red', itemTwoName: 'Black' });
+            }
+
+            let xIncrement = 150, yIncrement = 150, buttonRadius = 60;
+
+            params.pairs.forEach(function(pair, pairIndex, pairArray) {
+                imageNames.push( ('images/' + pair.itemOneName + '-' + pair.commonName + '.jpg').toLowerCase());
+                imageNames.push( ('images/' + pair.itemTwoName + '-' + pair.commonName + '.jpg').toLowerCase());
+            });
+
+            var canYou = 'seeme';
+
+            [150, 300, 450, 600].forEach(function(xVal, xInd, xArray) {
+                [150, 300, 450].forEach(function(yVal, yInd, yArray) {
+                    buttons.push(new Button ({centerX: xVal, centerY: yVal}, this.sendMessage));
+                }, this);
+            }, this);
+
+            loader.add(imageNames).load(this.setup);
+
+            let buttonsParams = [];
+            
+            return this;
+        }
+
+        onButtonPressed() {
+             console.log("'onButtonPressed()' happened");
+        }
+
+        start() {
+            console.log('The game is a foot.');
+            
+            return this;
+        }
+		setup(context) {
+
+                 imageNames.forEach(function(jpg, jpgIndex, jpgArray) {
+                     faceSprites.push(new Sprite( loader.resources[jpg].texture));
+                 });
+
+                buttons.forEach(function(buttonItem, buttonIndex, buttonArray) {
+                let sprite = buttonItem.backFaceContainer.addChild(faceSprites[buttonIndex]);
+                sprite.width = 120;
+                sprite.height = 120;
+                sprite.x = - sprite.width / 2;
+                sprite.y = - sprite.height / 2;
+            });
+		  }
+
+        sendMessage(obj) {
+            console.log('message from button: ' + obj.msg);
+            buttons.forEach(function(buttonItem, buttonIndex, buttonArray) {
+                 buttonItem.spin(.2);
+            });
+        }
+            
+    }
+
+    function clickHandler(event) {
+        console.log('event…');
+        if (this.hasOwnProperty('callback') === true) {
+            this.callback({msg: 'hello from clicky'});
+        }
+        if (pending === null) {    // show the face
+            pending = this;
+            this.frontFaceContainer.visible = false;
+            this.backFaceContainer.visible = true;
+        } else {                        // check for a match
+            this.frontFaceContainer.visible = false;
+            this.backFaceContainer.visible = true;
+        }
+    }
 
 	function randomInt(min, max) {
 	  return Math.floor(Math.random() * (max - min + 1)) + min;
 	}
    
-	var wotd = [
-			   'frothy',
-			   'soft',
-				'collusion',
-				'normalize',
-				'd44',
-				'humor',
-				'the\nDonald',
-				'smackdown',
-				'pie',
-				'PIXI',
-				'404\nPage not found',
-				'This',
-				'is',
-				'us'
-	];
+    // randomly select one item from input and place it in output until done
+    function randomizeArray(array) {
+        let newArray = [];
+        let itemCount = array.length;
+        for (item = itemCount; item > 0; item--) {
+            newArray.push(array.splice(randomInt(0, item - 1), 1));
+        }
+        return newArray;
+    }
+    // Global Game Data
 
-	function randomWotd() {
-	   return wotd[randomInt(0,wotd.length)];
-	}
+    let pending = null;
+    let imageNames = [];
+    var faceSprites = [];
+    var buttons = [];
+    let gameParams = {
+        category: 'Presidential Couples',
+        pairs: [
+            {
+                commonName: 'Washington',
+                itemOneName: 'George',
+                itemTwoName: 'Martha'
+            },
+            {
+                commonName: 'Adams',
+                itemOneName: 'John',
+                itemTwoName: 'Abigail'
+            },
+            {
+                commonName: 'Lincoln',
+                itemOneName: 'Abe',
+                itemTwoName: 'Mary'
+            },
+            {
+                commonName: 'Roosevelt',
+                itemOneName: 'Franklin',
+                itemTwoName: 'Eleanor'
+            },
+            {
+                commonName: 'Clinton',
+                itemOneName: 'Hillary',
+                itemTwoName: 'Bill'
+            },
+            {
+                commonName: 'Obama',
+                itemOneName: 'Barack',
+                itemTwoName: 'Michelle'
+            },
+        ]
+    };
 
-	var faceJpgs = [];
-	var faceSprites = [];
-	[ "bannon", "flynn", "mueller", "ivanka", "jared", "manafort", "m2", "ma2", "j2", "i2", "b2", "f2" ]
-               .forEach(function(face, faceIndex, faceArray) {
-					   faceJpgs.push( 'images/' + face + '.jpg')
-               });
-	
-	PIXI.loader.add(faceJpgs).load((setup));
+    // Game Logic
 
-		  function setup() {
-					 faceJpgs.forEach(function(jpg, jpgIndex, jpgArray) {
-					     faceSprites.push(new PIXI.Sprite(
-						      PIXI.loader.resources[jpg].texture
-								  ));
-					 });
-						buttons.forEach(function(buttonItem, buttonIndex, buttonArray) {
-							 var newBack = new PIXI.Container();
-							 this.mask = new PIXI.Graphics().beginFill(0xffffff).drawEllipse(0,0,60,60).endFill();
-							 mask.isMask = true;
-							 let sprite = newBack.addChild(faceSprites[buttonIndex]);
-							 let maskChild = newBack.addChild(mask);
-							 newBack.mask = this.mask;
-							 sprite.width = 120;
-							 sprite.height = 120;
-							 sprite.x = - sprite.width / 2;
-							 sprite.y = - sprite.height / 2;
-						    mask.width = 120;
-						    mask.height = 120;
-							 buttonItem.buttonBack.addChild(newBack);
-						});
-					 console.log('in setup');
-		  }
-
-	let buttons = [];
-   [150, 300, 450, 600].forEach(function(xVal, xInd, xArray){
-		 [150, 300, 450].forEach(function(yVal, yInd, yArray) {
-			  buttons.push(new Button ({centerX: xVal, centerY: yVal}));
-       });
-   });
+    let game = new Game(gameParams).start();
 
   </script>
 </body>
