@@ -30,22 +30,87 @@
 	app.renderer.resize(window.innerWidth, window.innerHeight);
 	document.body.appendChild(app.view);
 
+	class Billboard {
+
+	    constructor (params, callback) {
+            // add defaults for missing params
+            this.boardParams = JSON.parse(JSON.stringify(params));
+            this.displayTicks = 0;
+            // if (this.boardParams.hasOwnProperty('frontFaceColor') !== true) {
+                // this.boardParams.frontFaceColor = 0xff00ff;
+            // }
+
+            // create the graphics
+            this.callback = callback;
+				this.board = new Container(); // main container for billboard
+            this.board.x = 100;
+            this.board.y = 100;
+            this.board.width = 400;
+            this.board.height = 200;
+				this.board.interactive = true;
+				this.board.buttonMode = true;
+
+            this.board.background = this.board.addChild(new Graphics()
+                .beginFill(0xbbbbbb, 0.7)
+                .lineStyle(4, 0x000000, 1)
+                .drawRect(0, 0, 400, 200)
+                .endFill());
+
+            let textStyle = new TextStyle({
+                fontFamily: "Helvetica",
+                fontSize: 36,
+                align: "center",
+                wordWrap: true,
+                fill: "black"
+            });
+
+            this.board.message = this.board.addChild(new Text('Your Message Here', textStyle));
+            this.board.visible = true;
+
+            app.stage.addChild(this.board);
+	   }
+
+      displayText(text) {
+            var oldText = this.board.message.text;
+            this.board.message.text = text;
+            this.board.visible=true;
+            return oldText;
+      }
+
+      displayTextForSeconds(text, seconds) {
+            this.displayTicks = 60 * seconds;
+            var oldText = this.board.message.text;
+            this.board.message.text = text;
+            this.board.visible=true;
+            app.ticker.add(function myself(delta) {
+                this.displayTicks -= delta;
+                if (this.displayTicks < 0) {
+                   this.board.visible = false;
+                   app.ticker.remove(myself, this);
+                }
+            }.bind(this));
+            this.board.visible=true;
+            return oldText;
+      }
+
+	}
+
 	class Button {
 	    constructor (params, callback) {
-                  // add defaults for missing params
-                  this.gameParams = JSON.parse(JSON.stringify(params));
-                  if (this.gameParams.hasOwnProperty('frontFaceColor') !== true) {
-                      this.gameParams.frontFaceColor = 0xff00ff;
-                  }
-                  if (this.gameParams.hasOwnProperty('backFaceColor') !== true) {
-                      this.gameParams.backFaceColor = 0x6666ff;
-                  }
-                  if (this.gameParams.hasOwnProperty('radius') !== true) {
-                      this.gameParams.radius = 60;
-                  }
+            // add defaults for missing params
+            this.gameParams = JSON.parse(JSON.stringify(params));
+            if (this.gameParams.hasOwnProperty('frontFaceColor') !== true) {
+                this.gameParams.frontFaceColor = 0xff00ff;
+            }
+            if (this.gameParams.hasOwnProperty('backFaceColor') !== true) {
+                this.gameParams.backFaceColor = 0x6666ff;
+            }
+            if (this.gameParams.hasOwnProperty('radius') !== true) {
+                this.gameParams.radius = 60;
+            }
 
-                  // create the graphics
-                  this.callback = callback;
+            // create the graphics
+            this.callback = callback;
 				  this.disk = new Container(); // main container for disk
 				  this.disk.interactive = true;
 				  this.disk.buttonMode = true;
@@ -66,7 +131,9 @@
                   
                   this.frontFaceText =
                           this.disk.addChild(new PIXI.Text('?',
-                          {fontFamily : 'Arial', fontSize: 36, fill : 0xff1010, align : 'center'}));
+                          {fontFamily : 'Arial', fontSize: 48, fill : 0x000000, align : 'center'}));
+                  this.frontFaceText.x = - .2 * this.gameParams.radius;
+                  this.frontFaceText.y = - .5 * this.gameParams.radius;
                   this.backFaceContainer = this.disk.addChild(new Container());
                   this.backFaceFill = this.backFaceContainer.addChild(new Graphics())
                       .beginFill(this.gameParams.backFaceColor)
@@ -80,13 +147,14 @@
                   this.gameState = {
                       firstClickCount: 0,   // number of times this has been the first click of a turn
                       secondClickCount: 0,  // see above
-                      firstClickPending: false  // 'true' means that button has been clicked and is waiting for the second click of a turn
+                      firstClickPending: false,  // 'true' means that a button has been clicked and is waiting for the second click of a turn
+                      active: true,              // 'true' means still on the board
+                      commonName: this.gameParams.commonName
                   };
 
                   // handle clicking
 				  this.disk.on('click', clickHandler.bind(this));
 				  this.container = app.stage.addChild( new Container());
-				  return this;
 	   }
 
        setWait(value) {     // A button has been pressed
@@ -96,12 +164,31 @@
            }
        }
 
-       spin(radPerSec) {
-           app.ticker.add(this.rotate, this);
+       fail() {
+           this.frontFaceContainer.visible = true;
+           this.backFaceContainer.visible = false;
 		   }
 
+       success() {
+           game.pending = false;
+           this.gameState.active = false;
+           this.frontFaceText.text = ':)';
+           this.frontFaceText.rotation = Math.PI / 2;
+           this.frontFaceText.x += 15;
+           this.frontFaceContainer.visible = false;
+           this.backFaceContainer.visible = false;
+		   }
+
+       spin(radPerSec) {
+           app.ticker.add(this.rotateBack.bind(this));
+		   }
+
+       rotateBack(delta) {
+		    this.backFaceContainer.rotation += .05;
+		 }
+
        rotate(delta) {
-		    this.disk.rotation += .05;
+		    this.rotation += .05;
 		 }
 
        startToPerspect(radPerSec) {
@@ -133,15 +220,16 @@
             if (this.gameParams.pairs.length % 2 !== 0) {
                 this.gameParams.pairs.push({ commonName: 'Joker', itemOneName: 'Red', itemTwoName: 'Black' });
             }
-
             let xIncrement = 150, yIncrement = 150, buttonRadius = 60;
+            this.pending = false;
+            this.pendingCommonName = '';
 
             params.pairs.forEach(function(pair, pairIndex, pairArray) {
                 imageNames.push( ('images/' + pair.itemOneName + '-' + pair.commonName + '.jpg').toLowerCase());
                 imageNames.push( ('images/' + pair.itemTwoName + '-' + pair.commonName + '.jpg').toLowerCase());
+                commonNames.push( (pair.commonName));
+                commonNames.push( (pair.commonName));
             });
-
-            var canYou = 'seeme';
 
             [150, 300, 450, 600].forEach(function(xVal, xInd, xArray) {
                 [150, 300, 450].forEach(function(yVal, yInd, yArray) {
@@ -152,12 +240,9 @@
             loader.add(imageNames).load(this.setup);
 
             let buttonsParams = [];
+            this.board = new Billboard({}, function(){});
+            this.board.displayTextForSeconds("Let's play Presidential Couples!", 4);
             
-            return this;
-        }
-
-        onButtonPressed() {
-             console.log("'onButtonPressed()' happened");
         }
 
         start() {
@@ -167,40 +252,68 @@
         }
 		setup(context) {
 
-                 imageNames.forEach(function(jpg, jpgIndex, jpgArray) {
-                     faceSprites.push(new Sprite( loader.resources[jpg].texture));
-                 });
+          imageNames.forEach(function(jpg, jpgIndex, jpgArray) {
+             faceSprites.push(new Sprite( loader.resources[jpg].texture));
+          });
 
-                buttons.forEach(function(buttonItem, buttonIndex, buttonArray) {
-                let sprite = buttonItem.backFaceContainer.addChild(faceSprites[buttonIndex]);
-                sprite.width = 120;
-                sprite.height = 120;
-                sprite.x = - sprite.width / 2;
-                sprite.y = - sprite.height / 2;
-            });
-		  }
+          buttons.forEach(function(buttonItem, buttonIndex, buttonArray) {
+             buttonItem.gameState.commonName = commonNames[buttonIndex];
+             let sprite = buttonItem.backFaceContainer.addChild(faceSprites[buttonIndex]);
+             sprite.width = 120;
+             sprite.height = 120;
+             sprite.x = - sprite.width / 2;
+             sprite.y = - sprite.height / 2;
+         });
+     }
 
-        sendMessage(obj) {
-            console.log('message from button: ' + obj.msg);
-            buttons.forEach(function(buttonItem, buttonIndex, buttonArray) {
-                 buttonItem.spin(.2);
-            });
+        sendMessage(msg) {
+            if (game.pending === true) {
+                console.log('checking for a match to "' + game.pendingCommonName + '"');
+                game.pending = false;
+                if (game.pendingCommonName === msg.commonName) {
+                  game.board.displayTextForSeconds('You found a match!', 5);
+                  buttons.forEach(function(button, buttonIndex, buttonArray) {
+                     if (button.gameState.commonName === msg.commonName) {
+                        button.success();
+                     }
+                  });
+                } else {
+                  game.board.displayTextForSeconds('Sorry, try again', 5);
+                  buttons.forEach(function(button, buttonIndex, buttonArray) {
+                     if (button.gameState.active === true) {
+                        button.fail();
+                     }
+                  });
+                }
+            } else {
+               game.pending = true;
+               buttons.forEach(function(buttonItem, buttonIndex, buttonArray) {
+                    buttonItem.spin(buttonItem.frontFaceContainer, .2);
+                    
+                    buttonItem.gameState.firstClickPending = true;
+                    game.pendingCommonName = msg.commonName;
+               }, this);
+               console.log('pick was "' + game.pendingCommonName + '"');
+            }
         }
-            
     }
 
     function clickHandler(event) {
-        console.log('event…');
-        if (this.hasOwnProperty('callback') === true) {
-            this.callback({msg: 'hello from clicky'});
-        }
-        if (pending === null) {    // show the face
-            pending = this;
-            this.frontFaceContainer.visible = false;
-            this.backFaceContainer.visible = true;
-        } else {                        // check for a match
-            this.frontFaceContainer.visible = false;
-            this.backFaceContainer.visible = true;
+        this.frontFaceContainer.visible = false;
+        this.backFaceContainer.visible = true;
+        if (game.pending === true) {
+           if (this.hasOwnProperty('callback') === true) {
+               this.tickCounter = 4 * 60;
+               app.ticker.add(function myself(delta) {
+                   this.tickCounter -= delta;
+                   if (this.tickCounter < 0) {
+                      this.callback({commonName: this.gameState.commonName, msg: 'hello from clicky'});
+                      app.ticker.remove(myself, this);
+                   }
+               }.bind(this));
+           }
+        } else {
+           game.pending = true;
         }
     }
 
@@ -219,8 +332,8 @@
     }
     // Global Game Data
 
-    let pending = null;
     let imageNames = [];
+    let commonNames = [];
     var faceSprites = [];
     var buttons = [];
     let gameParams = {
