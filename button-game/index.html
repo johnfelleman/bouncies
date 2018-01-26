@@ -64,25 +64,22 @@
       class Billboard {
 
           constructor (params, callback) {
-               // add defaults for missing params
                this.boardParams = JSON.parse(JSON.stringify(params));
                this.displayTicks = 0;
-               // if (this.boardParams.hasOwnProperty('frontFaceColor') !== true) {
-                   // this.boardParams.frontFaceColor = 0xff00ff;
-               // }
 
-               // create the graphics
                this.callback = callback;
                this.board = new Container(); // main container for billboard
                this.board.width = 400;
                this.board.height = 200;
-               this.board.x = (app.renderer.width - this.board.width)/2;
-               this.board.y = (app.renderer.height - this.board.height)/2;
+               // this.board.x = (app.renderer.width - this.board.width)/2;
+               // this.board.y = (app.renderer.height - this.board.height)/2;
+               this.board.x = 300;
+               this.board.y = 200;
                this.board.interactive = true;
                this.board.buttonMode = true;
 
                this.board.background = this.board.addChild(new Graphics()
-                   .beginFill(0xbbbbbb, 0.7)
+                   .beginFill(0xaaaaaa, 0.85)
                    // .lineStyle(4, 0x000000, 1)
                    .drawRect(0, 0, 400, 200)
                    .endFill());
@@ -122,7 +119,7 @@
                       this.board.visible = false;
                       app.ticker.remove(myself, this);
                    }
-               }.bind(this));
+               },this);
                this.board.visible=true;
                return oldText;
          }
@@ -151,6 +148,8 @@
 
             this.state = {
                 faceup: false,             // 'true' means you can see the face
+                visible: true,
+                isPending: false,          // 'true' means it was the first button clicked and the second click is pending
                 clickable: true            // 'true' means interaction is possible
             };
 
@@ -186,20 +185,31 @@
                       .drawEllipse(0, 0, this.params.radius, this.params.radius)
                       .endFill();
 				  this.backFaceContainer.visible = false;
-                  
-                  app.stage.addChild(this.container);
+              app.stage.addChild(this.container);
 				  this.container.position.set(this.params.centerX, this.params.centerY);
-
-              // handle clicking
-				  // this.container.on('click', clickHandler.bind(this));
 				  this.container.on('click', function() {
                   this.callback(this);
               }.bind(this));
-	   }
-      clickHandler(event) {
-          this.callback(this);
-      }
+	    }
 
+       setClickableForSeconds(value, seconds) {
+          console.log('"' + this.params.itemName + '.setClickable(' + value + ',' + seconds + ')');
+          var tickCounter = 60 * seconds;
+          var pushValue = this.state.clickable;
+          this.state.clickable = value;
+          this.container.interactive = value;
+          this.container.buttonMode = value;
+          app.ticker.add(function me(delta) {
+             if ( tickCounter-- < 0) {
+                console.log('"' + this.params.itemName + 'setClickable back to ' + pushValue);
+                this.state.clickable = pushValue;
+                this.container.interactive = pushValue;
+                this.container.buttonMode = pushValue;
+                app.ticker.remove(me, this);
+            }
+          },this);
+          return this;
+       }
 
        setClickable(value) {
           this.state.clickable = value;
@@ -330,38 +340,33 @@
         // console.log('click handler callback received from ' + button.params.itemName +
              // ' ' + button.params.pairName);
         if (game.state.pending !== null) {
-            // console.log('checking for a match to ' + game.state.pending.params.itemName +
-                  // ' ' + game.state.pending.params.pairName);
-            if (game.state.pending.params.pairName === button.params.pairName) {
-               // console.log('Congratulations, you matched the ' + button.params.pairName + 's');
-               button.container.visible = false;
-               game.state.pending.container.visible = false;
-               game.metabuttons[button.params.parentIndex].active = false;
-               game.metabuttons[game.state.pending.params.parentIndex].active = false;
-            } else {
-               // console.log('Darn, no match.');
-               button.setFaceup(false, 4.0).setClickable(true);
-               game.state.pending.setFaceup(false).setClickable(true);
+            // disable buttons for 10 seconds
+            for (var mb in game.metabuttons) {
+               if (game.metabuttons[mb].active === true) {
+                  game.metabuttons[mb].button.setClickable(false);
+               }
             }
-            game.state.pending = null;
-            // this.tickCounter = 4 * 60;
-            // app.ticker.add(function myself(delta) {
-                // this.tickCounter -= delta;
-                // if (this.tickCounter < 0) {
-                   // // do stuff here
-                   // this.state.pending = false;
-                   // if (this.state.pendingCommonName === msg.commonName) {
-                     // game.board.displayTextForSeconds('You found a match!', 5);
-                     // buttons.forEach(function(button, buttonIndex, buttonArray) {
-                     // });
-                   // } else {
-                     // this.board.displayTextForSeconds('Sorry, try again', 5);
-                     // buttons.forEach(function(button, buttonIndex, buttonArray) {
-                     // });
-                   // }
-                   // app.ticker.remove(myself, this);
-                // }
-            // }.bind(this));
+            var tickCounter = 4 * 60;
+            app.ticker.add(function me(delta) {
+               if ( tickCounter-- < 0) {
+                  if (game.state.pending.params.pairName === button.params.pairName) {
+                     button.container.visible = false;
+                     game.state.pending.container.visible = false;
+                     game.metabuttons[button.params.parentIndex].active = false;
+                     game.metabuttons[game.state.pending.params.parentIndex].active = false;
+                  } else {
+                     button.setFaceup(false);
+                     game.state.pending.setFaceup(false);
+                  }
+                  for (var mb in game.metabuttons) {
+                     if (game.metabuttons[mb].active === true) {
+                        game.metabuttons[mb].button.setClickable(true);
+                     }
+                  }
+                  game.state.pending = null;
+                  app.ticker.remove(me, this);
+               }
+            },this);
         } else {
            game.state.pending = button;
         }
