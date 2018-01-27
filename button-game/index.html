@@ -150,7 +150,8 @@
                 faceup: false,             // 'true' means you can see the face
                 visible: true,
                 isPending: false,          // 'true' means it was the first button clicked and the second click is pending
-                clickable: true            // 'true' means interaction is possible
+                clickable: true,            // 'true' means interaction is possible
+                vAng: 0
             };
 
             // create the graphics
@@ -177,8 +178,10 @@
                   this.frontFaceText =
                           this.container.addChild(new PIXI.Text('?',
                           {fontFamily : 'Arial', fontSize: 48, fill : 0x000000, align : 'center'}));
-                  this.frontFaceText.x = - .2 * this.params.radius;
-                  this.frontFaceText.y = - .5 * this.params.radius;
+                  this.frontFaceText.x = - .03 * this.params.radius;
+                  this.frontFaceText.y = - .05 * this.params.radius;
+                  this.frontFaceText.pivot.x =  .2 * this.params.radius;
+                  this.frontFaceText.pivot.y =  .4 * this.params.radius;
                   this.backFaceContainer = this.container.addChild(new Container());
                   this.backFaceFill = this.backFaceContainer.addChild(new Graphics())
                       .beginFill(this.params.backFaceColor)
@@ -234,6 +237,17 @@
            app.ticker.add(this.rotateBack.bind(this));
            return this;
 		   }
+
+       rotateFrontText(vAng) {
+          this.state.vAng = vAng;
+          app.ticker.add(function me() {
+             if (this.state.vAng === 0) {
+                app.ticker.remove(me, this);
+             } else {
+                this.frontFaceText.rotation += this.state.vAng;
+             }
+          },this);
+       }
 
        rotateBack(delta) {
 		    this.backFaceContainer.rotation += .05;
@@ -330,7 +344,7 @@
               this.imageNames.push(('images/' + pair.itemNames[1] + '-' + pair.commonName + '.jpg').toLowerCase());
           }, this);
 
-
+            this.metabuttons = randomizeArray(this.metabuttons);
             let buttonsParams = [];
             loader.add(this.imageNames).load(this.setup.bind(this));
         }
@@ -342,11 +356,12 @@
         if (game.state.pending !== null) {
             // disable buttons for 10 seconds
             for (var mb in game.metabuttons) {
+               game.metabuttons[mb].button.rotateFrontText(-0.05);
                if (game.metabuttons[mb].active === true) {
                   game.metabuttons[mb].button.setClickable(false);
                }
             }
-            var tickCounter = 4 * 60;
+            var tickCounter = 2 * 60;
             app.ticker.add(function me(delta) {
                if ( tickCounter-- < 0) {
                   if (game.state.pending.params.pairName === button.params.pairName) {
@@ -359,6 +374,7 @@
                      game.state.pending.setFaceup(false);
                   }
                   for (var mb in game.metabuttons) {
+                     game.metabuttons[mb].button.rotateFrontText(0);
                      if (game.metabuttons[mb].active === true) {
                         game.metabuttons[mb].button.setClickable(true);
                      }
@@ -369,6 +385,9 @@
             },this);
         } else {
            game.state.pending = button;
+           for (var mb in game.metabuttons) {
+              game.metabuttons[mb].button.rotateFrontText(0.05);
+           }
         }
 
       }
@@ -419,7 +438,7 @@
         let newArray = [];
         let itemCount = array.length;
         for (item = itemCount; item > 0; item--) {
-            newArray.push(array.splice(randomInt(0, item - 1), 1));
+            newArray.push(array.splice(randomInt(0, item - 1), 1)[0]);
         }
         return newArray;
     }
