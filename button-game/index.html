@@ -10,7 +10,7 @@
   <style>* {padding: -; margin: 0}</style>
   <script type="text/javascript">
 
-    let params = {
+    let president_params = {
         category: 'Presidential Couples',
         pairs: [
             {
@@ -36,6 +36,36 @@
             {
                 commonName: 'Obama',
                 itemNames: [ 'Barack', 'Michelle' ]
+            },
+        ]
+    };
+
+    let params = {
+        category: 'FAR Clauses',
+        pairs: [
+            {
+                commonName: 'part52dot223',
+                itemNames: ['title', 'text' ]
+            },
+            {
+                commonName: 'part9dot3',
+                itemNames: ['title', 'text' ]
+            },
+            {
+                commonName: 'part5',
+                itemNames: ['title', 'text' ]
+            },
+            {
+                commonName: 'part3',
+                itemNames: ['title', 'text' ]
+            },
+            {
+                commonName: 'part1',
+                itemNames: ['title', 'text' ]
+            },
+            {
+                commonName: 'part7',
+                itemNames: ['title', 'text' ]
             },
         ]
     };
@@ -190,6 +220,9 @@
 				  this.backFaceContainer.visible = false;
               app.stage.addChild(this.container);
 				  this.container.position.set(this.params.centerX, this.params.centerY);
+				  this.container.on('tap', function() {
+                  this.callback(this);
+              }.bind(this));
 				  this.container.on('click', function() {
                   this.callback(this);
               }.bind(this));
@@ -329,19 +362,19 @@
 
           params.pairs.forEach(function(pair, pairIndex, pairArray) {
               this.metabuttons.push({
-                    imageName: ('images/' + pair.itemNames[0] + '-' + pair.commonName + '.jpg').toLowerCase(),
+                    imageName: ('images/' + pair.itemNames[0] + '_' + pair.commonName + '.png').toLowerCase(),
                     itemName: pair.itemNames[0],
                     pairName: pair.commonName,
                     active: true
               });
               this.metabuttons.push({
-                    imageName: ('images/' + pair.itemNames[1] + '-' + pair.commonName + '.jpg').toLowerCase(),
+                    imageName: ('images/' + pair.itemNames[1] + '_' + pair.commonName + '.png').toLowerCase(),
                     itemName: pair.itemNames[1],
                     pairName: pair.commonName,
                     active: true
               });
-              this.imageNames.push(('images/' + pair.itemNames[0] + '-' + pair.commonName + '.jpg').toLowerCase());
-              this.imageNames.push(('images/' + pair.itemNames[1] + '-' + pair.commonName + '.jpg').toLowerCase());
+              this.imageNames.push(('images/' + pair.itemNames[0] + '_' + pair.commonName + '.png').toLowerCase());
+              this.imageNames.push(('images/' + pair.itemNames[1] + '_' + pair.commonName + '.png').toLowerCase());
           }, this);
 
             this.metabuttons = randomizeArray(this.metabuttons);
